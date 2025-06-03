@@ -1,0 +1,150 @@
+{% load static %}
+<!DOCTYPE html>
+<html class="min-h-screen bg-gray-100">
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Dashboard Recepção</title>
+</head>
+<body class="min-h-screen flex flex-col">
+  <!-- Header -->
+  <header class="bg-green-600 text-white p-4 flex justify-between items-center">
+    <h1 class="text-xl font-semibold">Recepção: {{ request.user.username }}</h1>
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="bg-white text-green-600 px-3 py-1 rounded hover:bg-gray-100 transition">
+        Sair
+      </button>
+    </form>
+  </header>
+
+  <!-- Conteúdo principal -->
+  <main class="flex-1 p-6 space-y-8">
+    <!-- 1) Seção: Especialidades -->
+    <section class="bg-white shadow-md rounded-lg p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-medium">Especialidades Cadastradas</h2>
+        <a href="{% url 'cadastrar_especialidade' %}"
+           class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition">
+           + Nova
+        </a>
+      </div>
+      <ul class="list-disc list-inside text-gray-700">
+        {% for esp in especialidades %}
+          <li>{{ esp.name }}</li>
+        {% empty %}
+          <li class="font-light">Nenhuma especialidade cadastrada.</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <!-- 2) Seção: Salas -->
+    <section class="bg-white shadow-md rounded-lg p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-medium">Salas Cadastradas</h2>
+        <a href="{% url 'cadastrar_sala' %}"
+           class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition">
+           + Nova
+        </a>
+      </div>
+      <ul class="list-disc list-inside text-gray-700">
+        {% for sala in salas %}
+          <li>
+            {{ sala.name }} – {{ sala.especialidade.name }}
+            <a href="{% url 'editar_sala' sala.id %}" class="text-blue-600 hover:underline ml-2">(Editar)</a>
+          </li>
+        {% empty %}
+          <li class="font-light">Nenhuma sala cadastrada.</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <!-- 3) Seção: Emitir Senha -->
+    <section class="bg-white shadow-md rounded-lg p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-medium">Emitir Senha</h2>
+        <a href="{% url 'emitir_senha' %}"
+           class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition">
+           Emitir
+        </a>
+      </div>
+      {% if messages %}
+        <ul class="mt-4 space-y-2">
+          {% for m in messages %}
+            <li class="text-green-600">{{ m }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </section>
+
+    <!-- 4) NOVA SEÇÃO: Senhas Emitidas Hoje -->
+    <section class="bg-white shadow-md rounded-lg p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-medium">Senhas Emitidas Hoje ({{ tickets_hoje|length }})</h2>
+      </div>
+
+      {% if tickets_hoje %}
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-green-600">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-white uppercase">Código</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-white uppercase">Paciente</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-white uppercase">Tipo</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-white uppercase">Sala / Especialidade</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-white uppercase">Hora Emissão</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-white uppercase">Status</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              {% for ticket in tickets_hoje %}
+                <tr>
+                  <!-- Código da senha -->
+                  <td class="px-4 py-2 whitespace-nowrap">
+                    <span class="text-sm font-semibold text-gray-800">{{ ticket.code }}</span>
+                  </td>
+                  <!-- Nome do paciente -->
+                  <td class="px-4 py-2 whitespace-nowrap">
+                    <span class="text-sm text-gray-700">{{ ticket.patient_name }}</span>
+                  </td>
+                  <!-- Tipo de senha -->
+                  <td class="px-4 py-2 whitespace-nowrap">
+                    <span class="text-sm text-gray-700">{{ ticket.get_ticket_type_display }}</span>
+                  </td>
+                  <!-- Sala e Especialidade -->
+                  <td class="px-4 py-2 whitespace-nowrap">
+                    <span class="text-sm text-gray-700">
+                      {{ ticket.room.name }} – {{ ticket.room.especialidade.name }}
+                    </span>
+                  </td>
+                  <!-- Hora de emissão (issued_at) -->
+                  <td class="px-4 py-2 whitespace-nowrap">
+                    <span class="text-sm text-gray-700">
+                      {{ ticket.issued_at|date:"H:i:s" }}
+                    </span>
+                  </td>
+                  <!-- Status: Chamado ou Pendente -->
+                  <td class="px-4 py-2 whitespace-nowrap">
+                    {% if ticket.is_called %}
+                      <span class="inline-flex px-2 text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        Chamado
+                      </span>
+                    {% else %}
+                      <span class="inline-flex px-2 text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                        Pendente
+                      </span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="text-gray-600 italic">Nenhuma senha emitida hoje.</p>
+      {% endif %}
+    </section>
+
+  </main>
+</body>
+</html>

@@ -1,0 +1,277 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Painel de Chamadas – UBS</title>
+  <style>
+    /* ========= RESET BÁSICO ========= */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #e6f4ea; /* verde claro no fundo */
+      color: #1f3d2f;            /* verde escuro para textos */
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+
+    /* ========= ÁREA DE LOGOS ========= */
+    .header-logos {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto 20px auto;
+      padding: 10px 20px;
+    }
+    .header-logos .logo {
+      width: 180px;
+      height: auto;
+    }
+    .header-logos .spacer {
+      flex: 1;
+    }
+
+    /* ========= TÍTULO ========= */
+    h1 {
+      font-size: 48px;
+      color: #155724; /* verde bem escuro */
+      margin-bottom: 30px;
+    }
+
+    /* ========= CONTAINER PRINCIPAL ========= */
+    .painel-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 30px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* ========= CAIXA DA ÚLTIMA CHAMADA ========= */
+    .principal {
+      background-color: #28a745; /* verde médio */
+      border-radius: 16px;
+      padding: 40px 20px;
+      width: 100%;
+      max-width: 800px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .principal .senha {
+      font-size: 100px;
+      color: #ffffff;
+      margin-bottom: 10px;
+    }
+    .principal .nome {
+      font-size: 48px;
+      color: #f8f9fa;
+      margin-bottom: 8px;
+    }
+    .principal .sala {
+      font-size: 36px;
+      color: #fff3cd; /* amarelo claro */
+    }
+
+    /* ========= CAIXAS SECUNDÁRIAS ========= */
+    .secundarias {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      width: 100%;
+      max-width: 800px;
+    }
+    .secundaria {
+      background-color: #218838; /* verde mais escuro */
+      border-radius: 12px;
+      padding: 20px;
+      flex: 1 1 300px;
+      max-width: 360px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .secundaria .senha {
+      font-size: 64px;
+      color: #ffffff;
+      margin-bottom: 6px;
+    }
+    .secundaria .nome {
+      font-size: 28px;
+      color: #f8f9fa;
+      margin-bottom: 4px;
+    }
+    .secundaria .sala {
+      font-size: 24px;
+      color: #fff3cd;
+    }
+
+    /* ========= BOTÃO DE SOM ========= */
+    button {
+      background-color: #ffc107; /* amarelo */
+      color: #1f3d2f;
+      border: none;
+      padding: 12px 24px;
+      font-size: 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+    button:hover {
+      background-color: #e0a800;
+    }
+    button:active {
+      transform: scale(0.97);
+    }
+
+    /* ========= RESPONSIVIDADE ========= */
+    @media (max-width: 768px) {
+      .principal .senha {
+        font-size: 72px;
+      }
+      .principal .nome {
+        font-size: 36px;
+      }
+      .principal .sala {
+        font-size: 28px;
+      }
+      .secundaria .senha {
+        font-size: 48px;
+      }
+      .secundaria .nome {
+        font-size: 24px;
+      }
+      .secundaria .sala {
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ========= HEADER COM ESPAÇO PARA LOGOS ========= -->
+  <div class="header-logos">
+    <!-- Substitua “src” pelo caminho das suas logos -->
+    <img src="{% static '/img/brasao.png' %}" alt="Logo Prefeitura" class="logo">
+    <div class="spacer"></div>
+    <img src="{% static 'img/logo.png' %}" alt="Logo Secretaria de Saúde" class="logo">
+  </div>
+
+  <h1>PAINEL DE CHAMADAS – UBS</h1>
+
+  <div class="painel-container">
+    <!-- ÚLTIMA CHAMADA (MAIOR DESTAQUE) -->
+    <div class="principal">
+      <div class="senha" id="senha1">---</div>
+      <div class="nome" id="nome1">---</div>
+      <div class="sala" id="sala1">---</div>
+    </div>
+
+    <!-- PENÚLTIMA E ANTEPENÚLTIMA CHAMADAS (CAIXAS SECUNDÁRIAS) -->
+    <div class="secundarias">
+      <div class="secundaria">
+        <div class="senha" id="senha2">---</div>
+        <div class="nome" id="nome2">---</div>
+        <div class="sala" id="sala2">---</div>
+      </div>
+      <div class="secundaria">
+        <div class="senha" id="senha3">---</div>
+        <div class="nome" id="nome3">---</div>
+        <div class="sala" id="sala3">---</div>
+      </div>
+    </div>
+  </div>
+
+  <button onclick="ativarSom()">🔊 Ativar Som</button>
+  <audio id="audioChamada" src="{% static 'audio/bell.mp3' %}"></audio>
+
+  <script>
+    let audioLiberado = false;
+    let audio = document.getElementById('audioChamada');
+    let ultimaSenhaTocada = null;
+
+    function ativarSom() {
+      audioLiberado = true;
+      audio.play().catch(() => {});
+    }
+
+    function falarTexto(texto) {
+      const sintese = window.speechSynthesis;
+      const fala = new SpeechSynthesisUtterance(texto);
+      fala.lang = 'pt-BR';
+      fala.rate = 1;
+      fala.pitch = 1;
+      sintese.speak(fala);
+    }
+
+    function formatarSala(nomeSala, especialidade) {
+      if (!nomeSala || !especialidade) return '---';
+      return `${nomeSala} – ${especialidade}`;
+    }
+
+    async function atualizarPainel() {
+      try {
+        const response = await fetch("{% url 'publico_ultimas' %}");
+        const data = await response.json();
+
+        // Histórico local em localStorage
+        let historico = JSON.parse(localStorage.getItem('historicoPainel')) || [];
+
+        if (data.last_three && data.last_three.length > 0) {
+          const ultimo = data.last_three[0];
+          if (historico.length === 0 || historico[historico.length - 1].senha !== ultimo.code) {
+            historico.push({
+              senha: ultimo.code,
+              nome: ultimo.patient_name,
+              sala: ultimo.sala,
+              especialidade: ultimo.especialidade,
+              called_at: ultimo.called_at
+            });
+            if (historico.length > 5) historico.shift();
+            localStorage.setItem('historicoPainel', JSON.stringify(historico));
+          }
+        }
+
+        const ultima = historico[historico.length - 1] || { senha: '---', nome: '---', sala: '---', especialidade: '---' };
+        const penultima = historico[historico.length - 2] || { senha: '---', nome: '---', sala: '---', especialidade: '---' };
+        const antepenultima = historico[historico.length - 3] || { senha: '---', nome: '---', sala: '---', especialidade: '---' };
+
+        // Atualiza campo principal
+        document.getElementById('senha1').innerText = ultima.senha;
+        document.getElementById('nome1').innerText = ultima.nome;
+        document.getElementById('sala1').innerText = formatarSala(ultima.sala, ultima.especialidade);
+
+        // Atualiza caixas secundárias
+        document.getElementById('senha2').innerText = penultima.senha;
+        document.getElementById('nome2').innerText = penultima.nome;
+        document.getElementById('sala2').innerText = formatarSala(penultima.sala, penultima.especialidade);
+
+        document.getElementById('senha3').innerText = antepenultima.senha;
+        document.getElementById('nome3').innerText = antepenultima.nome;
+        document.getElementById('sala3').innerText = formatarSala(antepenultima.sala, antepenultima.especialidade);
+
+        if (ultima.senha !== ultimaSenhaTocada && ultima.senha !== '---' && audioLiberado) {
+          audio.currentTime = 0;
+          audio.play().catch(() => {});
+          const texto = `Atenção! Senha ${ultima.senha}, paciente ${ultima.nome}, dirigir-se à ${formatarSala(ultima.sala, ultima.especialidade)}.`;
+          falarTexto(texto);
+          ultimaSenhaTocada = ultima.senha;
+        }
+      } catch (err) {
+        console.error('Erro ao atualizar painel:', err);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      localStorage.removeItem('historicoPainel');
+      atualizarPainel();
+      setInterval(atualizarPainel, 1000);
+    });
+  </script>
+</body>
+</html>

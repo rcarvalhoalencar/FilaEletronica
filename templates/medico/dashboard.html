@@ -1,0 +1,45 @@
+{% load static %}
+<!DOCTYPE html>
+<html class="min-h-screen bg-gray-100">
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Dashboard Médico</title>
+</head>
+<body class="min-h-screen flex flex-col">
+  <!-- Header -->
+  <header class="bg-green-600 text-white p-4 flex justify-between items-center">
+    <div>
+      <h1 class="text-2xl font-semibold">Médico: {{ request.user.username }}</h1>
+    </div>
+    <div class="space-x-2">
+      <form method="post" action="{% url 'logout' %}" class="inline">
+      {% csrf_token %}
+      <button type="submit" class="bg-white text-green-600 px-3 py-1 rounded-md hover:bg-gray-100 transition">
+        Sair
+      </button>
+    </form>
+    </div>
+  </header>
+
+  <!-- Conteúdo principal -->
+  <main class="flex-1 p-6">
+    <h2 class="text-xl font-medium text-gray-800 mb-4">Selecione a Sala</h2>
+    <ul class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+      {% for sala in salas %}
+        <li>
+          <a href="{% url 'sala_tickets' sala.id %}"
+             class="block bg-white shadow-md rounded-lg p-6 hover:shadow-lg transition">
+            <h3 class="text-lg font-semibold text-gray-800">{{ sala.name }}</h3>
+            <p class="text-gray-600 mt-1">{{ sala.especialidade.name }}</p>
+          </a>
+        </li>
+      {% empty %}
+        <li class="col-span-full text-gray-600 italic">
+          Nenhuma sala cadastrada.
+        </li>
+      {% endfor %}
+    </ul>
+  </main>
+</body>
+</html>

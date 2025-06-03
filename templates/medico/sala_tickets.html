@@ -1,0 +1,146 @@
+{% load static %}
+<!DOCTYPE html>
+<html class="min-h-screen bg-gray-100">
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Sala {{ sala.name }}</title>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-green-600 text-white p-4 flex justify-between items-center">
+    <div>
+      <h1 class="text-2xl font-semibold">Dr(a). {{ request.user.username }}</h1>
+      <p class="text-gray-200 mt-1 text-sm">
+        Sala: <span class="font-medium">{{ sala.name }}</span> &mdash;
+        <span class="italic">{{ sala.especialidade.name }}</span>
+      </p>
+    </div>
+    <div class="space-x-2">
+      <a href="{% url 'medico_dashboard' %}"
+         class="bg-white text-green-600 px-3 py-1 rounded hover:bg-gray-100 transition">
+        ← Voltar
+      </a>
+      <form method="post" action="{% url 'logout' %}" class="inline">
+        {% csrf_token %}
+        <button type="submit"
+                class="bg-white text-green-600 px-3 py-1 rounded hover:bg-gray-100 transition">
+          Sair
+        </button>
+      </form>
+    </div>
+  </header>
+
+  <!-- Conteúdo principal -->
+  <main class="flex-1 p-6 space-y-8">
+    <!-- Seção: Pendentes -->
+    <!-- Seção: Pendentes -->
+<section class="bg-white shadow-md rounded-lg p-6">
+  <h2 class="text-xl font-medium text-gray-800 mb-4">Filas Pendentes</h2>
+
+  {% if tickets_pendentes %}
+    <ul id="lista-tickets-pendentes" class="space-y-2">
+      {% for t in tickets_pendentes %}
+        <li id="ticket-{{ t.id }}"
+            class="flex justify-between items-center bg-gray-50 p-4 rounded-md shadow-sm">
+          <!-- Coluna de código e nome -->
+          <div>
+            <span class="font-semibold">{{ t.code }}</span> &mdash; {{ t.patient_name }}
+          </div>
+
+          <!-- Botão "Chamar" -->
+          <div class="flex items-center space-x-2">
+            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-800">
+              {{ t.get_ticket_type_display }}
+            </span>
+            <a href="{% url 'chamar_ticket' t.id %}"
+               class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition">
+              Chamar
+            </a>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-gray-600 italic">Nenhum ticket pendente.</p>
+  {% endif %}
+</section>
+
+
+    <!-- Seção: Chamados (opcional) -->
+    <section class="bg-white shadow-md rounded-lg p-6">
+      <h2 class="text-xl font-medium text-gray-800 mb-4">Senhas Chamadas</h2>
+
+      {% if tickets_chamados %}
+        <ul id="lista-tickets-chamados" class="space-y-2">
+          {% for t in tickets_chamados %}
+            <li id="ticket-chamado-{{ t.id }}" 
+                class="flex justify-between items-center bg-gray-50 p-4 rounded-md shadow-sm">
+              <div>
+                <span class="font-semibold line-through">{{ t.code }}</span> &mdash; {{ t.patient_name }}
+              </div>
+              <div>
+                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-200 text-green-800">
+                  {{ t.get_ticket_type_display }}
+                </span>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-gray-600 italic">Nenhuma senha chamada ainda.</p>
+      {% endif %}
+    </section>
+  </main>
+
+  <!-- Aqui entra o script do WebSocket (caso já tenha sido configurado) -->
+  <script>
+    (function() {
+      const roomId = "{{ sala.id }}";
+      const ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
+      const socket = new WebSocket(ws_scheme + '://' + window.location.host + '/ws/medico/sala/' + roomId + '/');
+
+      socket.onopen = function() {
+        console.log("WebSocket Médico conectado à sala " + roomId);
+      };
+
+      socket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        console.log("Novo ticket:", data);
+        if (data.ticket) {
+          const ticket = data.ticket;
+          const listaPendentes = document.getElementById('lista-tickets-pendentes');
+
+          // Se ainda não havia nenhum li, remova a mensagem “Nenhum ticket pendente.”
+          const semPendentes = listaPendentes.querySelector('.text-gray-600');
+          if (semPendentes) semPendentes.remove();
+
+          // Cria novo <li> e adiciona ao topo
+          const li = document.createElement('li');
+          li.id = 'ticket-' + ticket.id;
+          li.className = 'flex justify-between items-center bg-gray-50 p-4 rounded-md shadow-sm';
+          li.innerHTML = `
+            <div>
+              <span class="font-semibold">${ticket.code}</span> &mdash; ${ticket.patient_name}
+            </div>
+            <div>
+              <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-800">
+                ${ticket.ticket_type}
+              </span>
+            </div>
+          `;
+          listaPendentes.prepend(li);
+        }
+      };
+
+      socket.onclose = function(e) {
+        console.warn("WebSocket desconectado:", e);
+      };
+      socket.onerror = function(e) {
+        console.error("Erro no WebSocket:", e);
+      };
+    })();
+  </script>
+</body>
+</html>

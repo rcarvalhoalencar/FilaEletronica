@@ -1,0 +1,67 @@
+{% load static %}
+<!DOCTYPE html>
+<html class="h-full bg-gray-100">
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Login - Fila UBS</title>
+</head>
+<body class="h-full flex items-center justify-center">
+  <div class="bg-white shadow-lg rounded-lg p-8 w-full max-w-sm">
+    <h2 class="text-2xl font-semibold text-center mb-6">Acesse sua Conta</h2>
+
+    {% if form.non_field_errors %}
+      <p class="text-red-600 text-sm text-center mb-4">
+        {{ form.non_field_errors|striptags }}
+      </p>
+    {% endif %}
+
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+
+      <!-- Campo de Usuário -->
+      <div>
+        <label for="id_username" class="block text-gray-700">Usuário</label>
+        <input
+          type="text"
+          name="username"
+          id="id_username"
+          value="{{ form.username.value|default_if_none:'' }}"
+          class="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+          required
+          autofocus
+        >
+        {% if form.username.errors %}
+          <p class="text-red-600 text-sm mt-1">
+            {{ form.username.errors|striptags }}
+          </p>
+        {% endif %}
+      </div>
+
+      <!-- Campo de Senha -->
+      <div>
+        <label for="id_password" class="block text-gray-700">Senha</label>
+        <input
+          type="password"
+          name="password"
+          id="id_password"
+          class="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+          required
+        >
+        {% if form.password.errors %}
+          <p class="text-red-600 text-sm mt-1">
+            {{ form.password.errors|striptags }}
+          </p>
+        {% endif %}
+      </div>
+
+      <button
+        type="submit"
+        class="w-full py-2 px-4 bg-green-600 text-white rounded-md hover:bg-green-700 transition"
+      >
+        Entrar
+      </button>
+    </form>
+  </div>
+</body>
+</html>

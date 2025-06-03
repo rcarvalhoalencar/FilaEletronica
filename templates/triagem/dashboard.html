@@ -1,0 +1,130 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Triagem – Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #f3f9f4;
+      color: #1a3d2c;
+      font-family: Arial, sans-serif;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-green-600 text-white p-4 flex justify-between items-center">
+    <h1 class="text-2xl font-semibold">Triagem – Sala: {{ sala_triagem.name }}</h1>
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button type="submit"
+              class="bg-white text-green-600 px-3 py-1 rounded hover:bg-gray-100 transition">
+        Sair
+      </button>
+    </form>
+  </header>
+
+  <!-- Conteúdo principal -->
+  <div class="max-w-5xl mx-auto p-4 flex-1">
+    <h1 class="text-3xl font-bold mb-6">Painel de Triagem</h1>
+
+    <table class="min-w-full bg-white shadow-sm rounded-lg overflow-hidden">
+      <thead class="bg-gray-100">
+        <tr>
+          <th class="px-4 py-2 text-left">Código</th>
+          <th class="px-4 py-2 text-left">Paciente</th>
+          <th class="px-4 py-2 text-left">Tipo</th>
+          <th class="px-4 py-2 text-left">Hora Emissão</th>
+          <th class="px-4 py-2 text-left">Destino</th>
+          <th class="px-4 py-2 text-left">Ações</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-200">
+        {% for t in tickets_triagem %}
+          <tr id="ticket-{{ t.id }}" class="{% if t.is_called %}bg-green-50{% endif %}">
+            <!-- Código -->
+            <td class="px-4 py-3">{{ t.code }}</td>
+            <!-- Paciente -->
+            <td class="px-4 py-3">{{ t.patient_name }}</td>
+            <!-- Tipo -->
+            <td class="px-4 py-3">{{ t.get_ticket_type_display }}</td>
+            <!-- Hora Emissão -->
+            <td class="px-4 py-3">{{ t.issued_at|date:"H:i:s" }}</td>
+
+            <!-- Destino -->
+            <td class="px-4 py-3">
+              {% if t.is_called %}
+                <select id="select-sala-{{ t.id }}"
+                        class="border border-gray-300 rounded px-2 py-1 w-full"
+                        onchange="document.getElementById('destino-{{ t.id }}').value = this.value;
+                                  document.getElementById('reenviar-btn-{{ t.id }}').disabled = (this.value === '');">
+                  <option value="">Selecione Sala...</option>
+                  {% for sala in outras_salas %}
+                    <option value="{{ sala.id }}">{{ sala.name }} – {{ sala.especialidade.name }}</option>
+                  {% endfor %}
+                </select>
+              {% else %}
+                <select disabled
+                        class="border border-gray-200 bg-gray-100 rounded px-2 py-1 w-full text-gray-400">
+                  <option>Chame o paciente antes...</option>
+                </select>
+              {% endif %}
+            </td>
+
+            <!-- Ações -->
+            <td class="px-4 py-3 space-x-2">
+              {% if not t.is_called %}
+                {# Botão “Chamar” #}
+                <form method="post"
+                      action="{% url 'triagem_chamar_ticket' t.id %}"
+                      class="inline">
+                  {% csrf_token %}
+                  <button type="submit"
+                          class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition">
+                    Chamar
+                  </button>
+                </form>
+
+                {# Botão “Reencaminhar” desabilitado #}
+                <button disabled
+                        class="bg-green-300 text-white px-3 py-1 rounded cursor-not-allowed">
+                  Reencaminhar
+                </button>
+
+              {% else %}
+                {# Quando já foi chamado, habilita “Reencaminhar” via POST #}
+                <form method="post"
+                      action="{% url 'triagem_reenviar' t.id %}"
+                      class="inline">
+                  {% csrf_token %}
+                  {# Campo escondido para enviar o destino selecionado #}
+                  <input type="hidden" name="destino" id="destino-{{ t.id }}" value="">
+                  <button id="reenviar-btn-{{ t.id }}"
+                          type="submit"
+                          class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition"
+                          disabled>
+                    Reencaminhar
+                  </button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6" class="text-center py-4 text-gray-500 italic">
+              Nenhum paciente na triagem no momento.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</body>
+
+</html>
