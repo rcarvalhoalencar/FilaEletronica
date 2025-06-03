@@ -8,12 +8,7 @@ from django.utils import timezone
 from django.http import JsonResponse, HttpResponseForbidden
 from django.views.decorators.http import require_GET
 from django.views.generic import TemplateView
-from .forms import TicketFormRecepcao
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
-
-from .models import Ticket, Sala
-from .decorators import triagem_required
+from .forms import TicketForm
 
 
 # core/views.py
@@ -53,25 +48,14 @@ class EmitirTicketForm(forms.Form):
 # ----------------------
 # VIEWS
 # ----------------------
-from django.shortcuts import redirect
-from django.contrib import messages
 @login_required
 def home(request):
-    if not request.user.is_authenticated:
-        return redirect('login')
-
     if request.user.role == 'recepcao':
         return redirect('recepcao_dashboard')
-
-    if request.user.role == 'triagem':
-        return redirect('triagem_dashboard')
-
-    if request.user.role == 'medico':
+    elif request.user.role == 'medico':
         return redirect('medico_dashboard')
-
-    # Caso role diferente, força logout ou recarrega login
-    messages.error(request, "Acesso negado para seu tipo de usuário.")
-    return redirect('login')
+    else:
+        return redirect('login')
 
 
 # ---- RECEPÇÃO ----
@@ -144,36 +128,48 @@ def editar_sala(request, sala_id):
     return render(request, 'recepcao/editar_sala.html', {'form': form, 'sala': sala})
 
 
-
-from .forms import TicketFormRecepcao
-
 @recepcao_required
 def emitir_senha(request):
     """
-    View para a recepção emitir a senha. Internamente usamos o TicketFormRecepcao,
-    que já força a associação do novo Ticket à Sala de Triagem.
+    View que emite uma nova senha. Após salvar, notifica o grupo do médico
+    via channel_layer.group_send().
     """
-    # Tenta buscar a sala “Triagem” no banco. Se não existir, dá erro.
-    try:
-        sala_triagem = Sala.objects.get(name__icontains="Triagem")
-    except Sala.DoesNotExist:
-        messages.error(request, "Sala de Triagem não cadastrada.")
-        return redirect('recepcao_dashboard')
-
     if request.method == 'POST':
-        form = TicketFormRecepcao(request.POST)
+        form = TicketForm(request.POST)
         if form.is_valid():
-            # O form.save() já seta 'room=sala_triagem' internamente
-            ticket = form.save()
-            messages.success(request, f"Senha {ticket.code} gerada com sucesso.")
-            return redirect('emitir_senha')
-    else:
-        form = TicketFormRecepcao()
+            ticket = form.save()  # Isso já atribui code, issued_at, etc.
 
-    return render(request, 'recepcao/emitir_senha.html', {
-        'form': form,
-        'sala_triagem': sala_triagem,
-    })
+            # Monta o dicionário que vamos enviar ao consumer
+            ticket_data = {
+                "id": ticket.id,
+                "code": ticket.code,
+                "patient_name": ticket.patient_name,
+                "ticket_type": ticket.get_ticket_type_display(),
+                "issued_at": ticket.issued_at.strftime("%H:%M:%S"),
+                "room": ticket.room.name,
+                "especialidade": ticket.room.especialidade.name,
+            }
+
+            # Pega o canal layer
+            channel_layer = get_channel_layer()
+            group_name = f"medico_sala_{ticket.room.id}"
+
+            # Dispara o evento "new_ticket" para todos os médicos naquela sala
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    "type": "new_ticket",     # Vai chamarMedicoConsumer.new_ticket()
+                    "ticket": ticket_data
+                }
+            )
+
+            messages.success(request, f"Senha {ticket.code} emitida com sucesso.")
+            return redirect('recepcao_dashboard')
+    else:
+        form = TicketForm()
+
+    return render(request, 'recepcao/emitir_senha.html', {'form': form})
+
 # ---- MÉDICO ----
 @medico_required
 def medico_dashboard(request):
@@ -279,71 +275,3 @@ from django.shortcuts import render
 
 def publico_painel(request):
     return render(request, 'publico/ultimas_chamadas.html')
-
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from .models import Ticket, Sala
-from .decorators import triagem_required
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_POST
-from django.utils import timezone
-from .models import Sala, Ticket
-from .decorators import triagem_required
-
-@login_required
-@triagem_required
-def triagem_dashboard(request):
-    """
-    Exibe todos os tickets cuja `room` é a Sala de Triagem,
-    ordenados pela hora de emissão.
-    """
-    # 1) Encontre a própria sala de triagem (pode ser pelo nome exato ou slug)
-    sala_triagem = get_object_or_404(Sala, name__icontains="Triagem")
-
-    # 2) Busque apenas os tickets que ainda estejam nessa sala (Triagem)
-    tickets_triagem = Ticket.objects.filter(room=sala_triagem).order_by('issued_at')
-
-    # 3) Liste “outras_salas” para aparecer no select de encaminhar
-    outras_salas = Sala.objects.exclude(id=sala_triagem.id)
-
-    return render(request, "core/triagem_dashboard.html", {
-        "sala_triagem": sala_triagem,
-        "tickets_triagem": tickets_triagem,
-        "outras_salas": outras_salas,
-    })
-
-
-
-@login_required
-@triagem_required
-@require_POST
-def triagem_reenviar(request, ticket_id):
-    """
-    Em vez de “mover” o ticket original, cria-se um novo Ticket
-    para a sala de destino, com mesmo patient_name, ticket_type.
-    """
-    # 1) Parametros vindos do POST (destino_id e ticket_id)
-    destino_id = request.POST.get("destino_id")
-    sala_destino = get_object_or_404(Sala, id=destino_id)
-
-    # 2) Busque o ticket original (que está na triagem)
-    ticket_original = get_object_or_404(Ticket, id=ticket_id)
-
-    # 3) Crie um novo Ticket apontando para a sala de destino:
-    novo = Ticket(
-        patient_name=ticket_original.patient_name,
-        ticket_type=ticket_original.ticket_type,
-        room=sala_destino,
-        # o código será gerado no save() automaticamente:
-        issued_at=timezone.now()
-    )
-    novo.save()
-
-    # (Opcional) Você pode querer “marcar” o original como já “encaminhado” ou
-    # adicionar uma flag, mas não é obrigatório. Se quiser, poderia:
-    # ticket_original.is_called = True
-    # ticket_original.called_at = timezone.now()
-    # ticket_original.save()
-
-    return redirect("triagem_dashboard")

@@ -2,8 +2,6 @@
 
 from django.urls import re_path
 from . import consumers
-from django.urls import re_path
-from core.consumers import Medico
 
 websocket_urlpatterns = [
     # Já existia para o Painel: ws/painel/
@@ -12,6 +10,4 @@ websocket_urlpatterns = [
     # Novo: Rota para médico por sala
     # Ex.: ws/medico/sala/5/ → MedicoConsumer(room_id=5)
     re_path(r'ws/medico/sala/(?P<room_id>\d+)/$', consumers.MedicoConsumer.as_asgi()),
-        # … outros …
-    re_path(r'ws/triagem/$', consumers.TriagemConsumer.as_asgi()),
 ]
